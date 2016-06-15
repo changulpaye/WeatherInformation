@@ -12,4 +12,7 @@ public class Constants {
     public static final String UNITS_PARAM = "units";
     public static final String DAYS_PARAM = "cnt";
     public static final String APPID_PARAM = "APPID";
+    public static final String FORECAST_DETAIL = "forecast_details";
+    public static final String LOG_TAG = "sunshine";
+    public static final String FORECAST_SHARE_HASH_TAG = "#Sunshine app";
 }

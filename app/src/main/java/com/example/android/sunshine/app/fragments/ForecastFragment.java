@@ -1,9 +1,12 @@
 package com.example.android.sunshine.app.fragments;
 
 import android.app.ProgressDialog;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -12,11 +15,13 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.Toast;
 
 import com.example.android.sunshine.app.R;
+import com.example.android.sunshine.app.activities.DetailActivity;
 import com.example.android.sunshine.app.utils.Constants;
 import com.example.android.sunshine.app.utils.WeatherDataParser;
 
@@ -35,6 +40,7 @@ import java.net.URL;
 public class ForecastFragment extends Fragment {
 
     private ListView listView;
+    ArrayAdapter<String> forecastAdapter;
     public ForecastFragment() {
     }
 
@@ -50,13 +56,31 @@ public class ForecastFragment extends Fragment {
         View rootView = inflater.inflate(R.layout.fragment_main, container, false);
 
         listView = (ListView) rootView.findViewById(R.id.listView_forecast);
-
+        listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int position, long l) {
+                String forecast = forecastAdapter.getItem(position);
+                Toast.makeText(getActivity(), "Forecast : " + forecast, Toast.LENGTH_SHORT).show();
+                Intent detailIntent = new Intent(getActivity(), DetailActivity.class);
+                detailIntent.putExtra(Constants.FORECAST_DETAIL,forecast);
+                startActivity(detailIntent);
+            }
+        });
         Toast.makeText(getActivity(), "Fetching Weather information.", Toast.LENGTH_SHORT).show();
-        new FetchWeatherTask().execute("411014");
-
         return rootView;
     }
 
+    private void updateWeather() {
+        FetchWeatherTask fetchWeatherTask = new FetchWeatherTask();
+        String location = PreferenceManager.getDefaultSharedPreferences(getActivity()).getString(
+                getString(R.string.pref_location_key),getString(R.string.pref_location_default));
+        fetchWeatherTask.execute(location);
+    }
+    @Override
+    public void onStart() {
+        super.onStart();
+        updateWeather();
+    }
 
     class FetchWeatherTask extends AsyncTask<String, Void, String[]>
     {
@@ -76,7 +100,8 @@ public class ForecastFragment extends Fragment {
         protected String[] doInBackground(String... strings) {
             String weatherJson = getWeatherDataFromServer(strings[0]);
             try {
-                return  WeatherDataParser.getWeatherDataFromJson(weatherJson,7);
+                return  WeatherDataParser.getWeatherDataFromJson(getActivity().
+                        getApplicationContext(), weatherJson, 7);
             } catch (JSONException e) {
                 e.printStackTrace();
                 return null;
@@ -86,14 +111,17 @@ public class ForecastFragment extends Fragment {
         @Override
         protected void onPostExecute(String s[]) {
             super.onPostExecute(s);
-            ArrayAdapter<String> stringArrayAdapter = new ArrayAdapter<>(getActivity(),
-                    R.layout.list_item_forecast, R.id.tvForcast,s);
-            listView.setAdapter(stringArrayAdapter);
-
-            progressDialog.dismiss();
+            if(s != null) {
+                forecastAdapter = new ArrayAdapter<>(getActivity(),
+                        R.layout.list_item_forecast, R.id.tvForcast,s);
+                listView.setAdapter(forecastAdapter);
+                progressDialog.dismiss();
+            } else {
+                Toast.makeText(getActivity(), "Problem in fetching data.", Toast.LENGTH_SHORT).show();
+                progressDialog.dismiss();
+            }
             Log.d("WEATHER_DATA","Data : "+ s);
         }
-
 
 
         private String getWeatherDataFromServer(String postalCode) {
@@ -197,6 +225,12 @@ public class ForecastFragment extends Fragment {
         if(item.getItemId() ==  R.id.action_refresh) {
             Toast.makeText(getActivity(), "Fetching Weather information.", Toast.LENGTH_SHORT).show();
             new FetchWeatherTask().execute("411014");
+
+            FetchWeatherTask weatherTask = new FetchWeatherTask();
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getActivity());
+            String location = prefs.getString(getString(R.string.pref_location_key),
+                    getString(R.string.pref_location_default));
+            weatherTask.execute(location);
         }
         return super.onOptionsItemSelected(item);
 

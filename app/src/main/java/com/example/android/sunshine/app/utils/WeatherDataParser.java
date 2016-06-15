@@ -1,7 +1,13 @@
 package com.example.android.sunshine.app.utils;
 
+import android.app.Activity;
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.preference.PreferenceManager;
 import android.text.format.Time;
 import android.util.Log;
+
+import com.example.android.sunshine.app.R;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -24,7 +30,7 @@ public class WeatherDataParser {
 
     }
 
-    public static String[] getWeatherDataFromJson(String forecastJsonStr, int numDays)
+    public static String[] getWeatherDataFromJson(Context context, String forecastJsonStr, int numDays)
             throws JSONException {
 
         // These are the names of the JSON objects that need to be extracted.
@@ -34,6 +40,12 @@ public class WeatherDataParser {
         final String OWM_MAX = "max";
         final String OWM_MIN = "min";
         final String OWM_DESCRIPTION = "main";
+
+        SharedPreferences sharedPrefs =
+                PreferenceManager.getDefaultSharedPreferences(context);
+        String unitType = sharedPrefs.getString(
+                context.getString(R.string.pref_units_key),
+                context.getString(R.string.pref_units_metric));
 
         JSONObject forecastJson = new JSONObject(forecastJsonStr);
         JSONArray weatherArray = forecastJson.getJSONArray(OWM_LIST);
@@ -83,8 +95,9 @@ public class WeatherDataParser {
             double high = temperatureObject.getDouble(OWM_MAX);
             double low = temperatureObject.getDouble(OWM_MIN);
 
-            highAndLow = formatHighLows(high, low);
+            highAndLow = formatHighLows(context, high, low, unitType);
             resultStrs[i] = day + " - " + description + " - " + highAndLow;
+
         }
 
         for (String s : resultStrs) {
@@ -104,7 +117,15 @@ public class WeatherDataParser {
     /**
      * Prepare the weather high/lows for presentation.
      */
-    private static String formatHighLows(double high, double low) {
+    private static String formatHighLows(Context context, double high, double low, String unitType) {
+
+        if (unitType.equals(context.getString(R.string.pref_units_imperial))) {
+            high = (high * 1.8) + 32;
+            low = (low * 1.8) + 32;
+        } else if (!unitType.equals(context.getString(R.string.pref_units_metric))) {
+            Log.d(Constants.LOG_TAG, "Unit type not found: " + unitType);
+        }
+
         // For presentation, assume the user doesn't care about tenths of a degree.
         long roundedHigh = Math.round(high);
         long roundedLow = Math.round(low);
